@@ -1,0 +1,114 @@
+readme：spring study by time. 【】代表可选项
+120709
+
+搭建spring环境：
+	1、创建项目
+	2、导入相关spring类库
+	3、创建并配置spring的配置文件
+	【4】、如果在web环境中使用，则需要在web.xml文件中配置spring的监听器或servlet
+
+spring框架中bean的生命周期(定义-初始化-调用-销毁)
+
+	1、bean定义：
+   		 在配置文件里面用<bean></bean>来进行定义。<bean id="bean id" name="package.simple class Name"/>
+	2、bean初始化：有两种方式初始化:  也可同时使用。参数指定的后执行
+			A.在配置文件中通过指定init-method属性指定bean实例中的某个方法为初始化方法：  <bean id="bean id" name="A" init-method="init"/>
+			B.实现org.springframwork.beans.factory.InitializingBean接口  实现afterPropertiesSet()方法比配置里的初始化方法先执行
+	3  bean调用，在下面章节中详细介绍
+    	有三种方式可以得到bean实例，并进行调用,前面有所讲述
+		FileSystemXmlApplicationCentext
+		ClassPath......
+		XmlBeanFactor  需要一个Resource如： Resource res = new FileSystemResource("src/beans.xml"); 
+
+  	4  bean销毁 两种方式。也可同时使用  参数指定的销毁方法后运行
+         A.使用配置文件指定的destroy-method属性，即指定bean类里面的某个方法为销毁方法
+         B.实现org.springframwork.bean.factory.DisposableBean接口 实现destroy()方法，比配置先执行
+			可以通过调用ConfigurableListableBeanFactory(XmlBeanFactory)里的destroySingletons销毁单例对象，测试destroy()
+		   	ConfigurableListableBeanFactory beanFactory =new XmlBeanFactory(new FileSystemResource("src/bean.xml"));
+		     	beanFactory.destroySingletons();
+			}
+		 当调用beanFactory.destroySingletons()方法的时候，bean不会马上销毁，但是容器在销毁bean之前，会等到方法结束剩余的任务后,  再调用相应的销毁bean之前指定的其他方法。再干掉bean,值得注意的是：
+		非 原型 bean(非单例bean)在创建后即脱离 BeanFactory 的维护，所以只能调用初始化方法，而不能做清理工作。  而是把它们交给Spring框架下的应用本身去管理，这样就相当于把Bean交给了GC。
+ 		但是如果是单例模式的Bean，Spring会建立一个Bean的列表来统一管理，在Spring应用被关闭的时候，会执行BeanFactory中的destroySingltons()方法来逐个销毁列表中的Bean。这就是为什么只有单例模式实现Spring的那两个事件接口或指定方法属性才是有效的
+
+spring 中bean的作用域（5种）:2.0或者以前只有单例和非单例   2.0以后有以下5种
+ 	singleton：在每个Spring IoC容器中一个bean定义对应一个对象实例。
+	prototype： 一个bean定义对应多个对象实例。
+	request：在一次HTTP请求中，一个bean定义对应一个实例；即每次HTTP请求将会有各自的bean实例， 它们依据某个bean定义创建而成。该作用 域仅在基于web的Spring ApplicationContext情形下有效。
+	session在一个HTTP Session中，一个bean定义对应一个实例。该作用域仅在基于web的Spring ApplicationContext情形下有效。	
+	global session：在一个全局的HTTP Session中，一个bean定义对应一个实例。典型情况下，仅在使用portlet context的时候有效。该作用域仅在基于 web的Spring ApplicationContext情形下有效。
+
+
+spring3种方式获取beanFactory:
+	1、通过文件系统获取 如：
+		Resource res = new FileSystemResource("conf/beans.xml");
+	    XmlBeanFactory beanFactory = new XmlBeanFactory(res);
+	    StudentInfo info = (StudentInfo)beanFactory.getBean("student");
+		System.out.println(info);
+	2、通过类路径 如：
+		ClassPathResource resource = new ClassPathResource("beans.xml");
+		XmlBeanFactory beanFactory = new XmlBeanFactory(resource);
+		StudentInfo info = (StudentInfo)beanFactory.getBean("student");
+		System.out.println(info);
+	3、通过上下文，applicationContext 如：
+		//no·1
+		FileSystemXmlApplicationContext applicationContext = new FileSystemXmlApplicationContext("conf/beans.xml");
+		StudentInfo info = (StudentInfo)applicationContext.getBean("student");
+		System.out.println(info);
+		//no·2
+		ClassPathXmlApplicationContext applicationContext2  = new ClassPathXmlApplicationContext("beans.xml");
+		StudentInfo info2 = (StudentInfo) applicationContext2.getBean("student");
+		System.out.println(info2);
+
+spring国际化：
+	1、spring资源文件配置：
+		<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+	      <property name="basenames">
+	          <list>
+	            <value>message</value><!--值为资源文件前缀，如文件：message_en_US.properties，message_zh_CN.properties则值为message; -->
+	          	<value>其它资源文件2</vlaue>
+	          	<value>其它资源文件。。。</vlaue>
+	          </list>
+	      </property>
+	    </bean>
+	  2、使用国际化：
+	     ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("beans.xml");
+		 Object[] objs = {"zhangsan",new Date()};
+		 //资源文件：UN:userInfo={0} user login,login time {1}
+		 //资源文件：CH:userInfo={0}用户登录,登录时间为{1}
+		 //参数(key,values,language); 
+		 String msg = context.getMessage("userInfo", objs, Locale.ENGLISH);
+		 System.out.println(msg);//输出为：zhangsan user login，login time 7/9/12 11:21 AM,语言换成：Locale.CHINA 输出为：zhangsan用户登录，登录时间为12-7-9 上午11:23
+	    
+	    
+	    
+spring在web环境下使用：
+	spring在web环境中的配置（2种）
+
+	1.在Web.xml中配置上下文载入器
+	根据你的系统情况,你可以选择两种上下文载入器:ContextLoaderListener和ContextLoaderServlet.如果你的Web容器支持Servlet2.3标准或更高,你可以使用两者,否则只能使用后者.
+		1、ContextLoaderListener在Web.xml应该如下配置:
+			<listener>
+				<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+			</listener> 
+		2、ContextLoaderServlet在Web.xml应该如下配置:
+			<servlet>
+				<servlet-name>context</servlet-name>
+				<servlet-class> org.springframework.web.context.ContextLoaderServlet</servlet-class>
+			  	<load-on-startup>1</load-on-startup> 服务器启动的时候加载
+			</servlet>
+	   2.指定上下文载入器的配置文件  不论你使用的那种上下文载入器,你都应该指明Spring配置文件的位置.如果没有指定,上下文载入器将把/web-inf/applicationContext.xml当作Spring
+	   	配置文件。要指定Spring配置文件的位置，你可以在Servlet上下文设置contextConfigLocation参数来为上下文载入器指定一个或多个Spring配置文件（使用通配符或是用逗号隔开）。
+	   	如下所示：
+	   	<context-param>
+		    <param-name>contextConfigLocation</param-name>
+		   	<param-value>/WEB-INF/bean.xml</param-value>
+		 </context-param>
+	   
+	    
+	    
+	    
+	    
+	    
+	    
+     
